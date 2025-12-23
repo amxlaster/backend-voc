@@ -47,10 +47,13 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // CORS
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000","https://swanzaa.com", "https://www.swanzaa.com"],
+    origin: ["https://swanzaa.com", "https://www.swanzaa.com"],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
+
 
 // MongoDB
 mongoose

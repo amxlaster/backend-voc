@@ -3,23 +3,12 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ✅ Load env correctly
-dotenv.config({ path: path.join(__dirname, ".env") });
-
-// ---- DEBUG (remove later) ----
-console.log("ENV CHECK:", {
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? "OK" : "MISSING",
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? "OK" : "MISSING",
-});
-// --------------------------------
-
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize";
 
 // Routes
 import quizRoutes from "./routes/quiz.js";
@@ -31,15 +20,34 @@ import studentRoutes from "./routes/students.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import quotesRoute from "./routes/quotes.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const _dirname = path.dirname(_filename);
+
+// Load env
+dotenv.config({ path: path.join(__dirname, ".env") });
+
+// ✅ CREATE APP FIRST
 const app = express();
 
-/* 🔥 CRITICAL FIX */
+// 🔐 SECURITY MIDDLEWARES (ORDER IMPORTANT)
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(mongoSanitize());
+
+// 🔒 Rate Limiter
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+});
+app.use("/api", limiter);
+
+// Body parser
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// CORS
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: ["http://localhost:5173", "http://localhost:3000","https://swanzaa.com", "https://www.swanzaa.com"],
     credentials: true,
   })
 );
@@ -60,7 +68,7 @@ app.use("/api/student-quiz", studentQuizRoutes);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/quotes", quotesRoute);
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 5004;
 app.listen(port, () => {
   console.log("Server running on port", port);
 });

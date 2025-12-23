@@ -18,6 +18,9 @@ import studentRoutes from "./routes/students.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import quotesRoute from "./routes/quotes.js";
 
+// ------------------------------------------------------------------
+// BASIC SETUP
+// ------------------------------------------------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -26,14 +29,18 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 
-// Security
+// ------------------------------------------------------------------
+// SECURITY
+// ------------------------------------------------------------------
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(mongoSanitize());
 
-// 🔥 MANUAL CORS FIX
+// ------------------------------------------------------------------
+// 🔥 CORS (MANUAL + PREFLIGHT FIX) — VERY IMPORTANT
+// ------------------------------------------------------------------
 const allowedOrigins = [
   "https://swanzaa.com",
-  "https://www.swanzaa.com"
+  "https://www.swanzaa.com",
 ];
 
 app.use((req, res, next) => {
@@ -53,6 +60,7 @@ app.use((req, res, next) => {
     "Content-Type, Authorization"
   );
 
+  // 🔥 PREFLIGHT REQUEST HANDLING
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -60,24 +68,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiter
+// ------------------------------------------------------------------
+// RATE LIMIT
+// ------------------------------------------------------------------
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
 });
 app.use("/api", limiter);
 
-// Body parser
+// ------------------------------------------------------------------
+// BODY PARSER
+// ------------------------------------------------------------------
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// MongoDB
+// ------------------------------------------------------------------
+// DATABASE
+// ------------------------------------------------------------------
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("Mongo error:", err));
 
-// Routes
+// ------------------------------------------------------------------
+// ROUTES
+// ------------------------------------------------------------------
 app.use("/api/users", usersRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/admins", adminRoutes);
@@ -87,7 +103,10 @@ app.use("/api/student-quiz", studentQuizRoutes);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/quotes", quotesRoute);
 
+// ------------------------------------------------------------------
+// START SERVER
+// ------------------------------------------------------------------
 const port = process.env.PORT || 5004;
 app.listen(port, () => {
-  console.log("Server running on port", port);
+  console.log(`🚀 Server running on port ${port}`);
 });

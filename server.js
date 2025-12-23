@@ -6,7 +6,7 @@ import express from "express";
 import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize";
+import cors from "cors";
 
 // Routes
 import quizRoutes from "./routes/quiz.js";
@@ -18,82 +18,62 @@ import studentRoutes from "./routes/students.js";
 import leaderboardRouter from "./routes/leaderboard.js";
 import quotesRoute from "./routes/quotes.js";
 
-// ------------------------------------------------------------------
-// BASIC SETUP
-// ------------------------------------------------------------------
+// ---------------- BASIC SETUP ----------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load env
 dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 
-// ------------------------------------------------------------------
-// SECURITY
-// ------------------------------------------------------------------
+// ---------------- SECURITY ----------------
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(mongoSanitize());
 
-// ------------------------------------------------------------------
-// 🔥 CORS (MANUAL + PREFLIGHT FIX) — VERY IMPORTANT
-// ------------------------------------------------------------------
-const allowedOrigins = [
-  "https://swanzaa.com",
-  "https://www.swanzaa.com",
-];
+// ---------------- CORS (NODE 20 SAFE) ----------------
+app.use(
+  cors({
+    origin: [
+      "https://swanzaa.com",
+      "https://www.swanzaa.com",
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
+// ---------------- RATE LIMIT ----------------
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  })
+);
 
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET,POST,PUT,DELETE,OPTIONS"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-
-  // 🔥 PREFLIGHT REQUEST HANDLING
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
-
-// ------------------------------------------------------------------
-// RATE LIMIT
-// ------------------------------------------------------------------
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-});
-app.use("/api", limiter);
-
-// ------------------------------------------------------------------
-// BODY PARSER
-// ------------------------------------------------------------------
+// ---------------- BODY PARSER ----------------
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ------------------------------------------------------------------
-// DATABASE
-// ------------------------------------------------------------------
+// ---------------- DATABASE ----------------
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("Mongo error:", err));
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB error:", err);
+    process.exit(1);
+  });
 
-// ------------------------------------------------------------------
-// ROUTES
-// ------------------------------------------------------------------
+// ---------------- HEALTH ----------------
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    backend: "swanzaa",
+    time: new Date().toISOString(),
+  });
+});
+
+// ---------------- ROUTES ----------------
 app.use("/api/users", usersRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/admins", adminRoutes);
@@ -103,10 +83,8 @@ app.use("/api/student-quiz", studentQuizRoutes);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/quotes", quotesRoute);
 
-// ------------------------------------------------------------------
-// START SERVER
-// ------------------------------------------------------------------
-const port = process.env.PORT || 5004;
-app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+// ---------------- START ----------------
+const PORT = process.env.PORT || 5004;
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
 });

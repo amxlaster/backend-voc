@@ -1,10 +1,8 @@
-// backend/server.js
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
 import express from "express";
-import cors from "cors";
 import mongoose from "mongoose";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -21,19 +19,48 @@ import leaderboardRouter from "./routes/leaderboard.js";
 import quotesRoute from "./routes/quotes.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const _dirname = path.dirname(_filename);
+const __dirname = path.dirname(__filename);
 
 // Load env
 dotenv.config({ path: path.join(__dirname, ".env") });
 
-// ✅ CREATE APP FIRST
 const app = express();
 
-// 🔐 SECURITY MIDDLEWARES (ORDER IMPORTANT)
+// Security
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(mongoSanitize());
 
-// 🔒 Rate Limiter
+// 🔥 MANUAL CORS FIX
+const allowedOrigins = [
+  "https://swanzaa.com",
+  "https://www.swanzaa.com"
+];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,DELETE,OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+// Rate limiter
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -43,17 +70,6 @@ app.use("/api", limiter);
 // Body parser
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// CORS
-app.use(
-  cors({
-    origin: ["https://swanzaa.com", "https://www.swanzaa.com"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-);
-
 
 // MongoDB
 mongoose
